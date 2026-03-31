@@ -1,4 +1,5 @@
 import pandas as pd
+import random
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 
 # load data
@@ -31,11 +32,31 @@ def predict(route_id, time_of_day):
         "route_id": [route_id],
         "time_of_day": [time_of_day]
     })
+    # ML prediction
     delay = delay_model.predict(input_data)[0]
     ghost_prob = ghost_model.predict_proba(input_data)[0][1]
-    return delay, ghost_prob
+    # live sensor check
+    gps_active_live = detect_gps_from_sensor(route_id, time_of_day)
+
+    # final decision
+    if gps_active_live == 0:
+        ghost_prob = 1.0 # override as it is definetely ghost
+
+    return delay, ghost_prob, gps_active_live
 
 def reliability_score():
     total = len(df)
     ghosts = df["ghost"].sum()
     return round((1 - ghosts/total) * 100, 2)
+# simulating live sensor data
+def get_sensor_activity(route_id, time_of_day):
+    # simulate number of devices near the bus
+    activity = random.randint(0,10)
+    return activity
+
+def detect_gps_from_sensor(route_id, time_of_day):
+    activity = get_sensor_activity(route_id, time_of_day)
+    if activity < 2:
+        return 0 #ghost
+    else:
+        return 1 #bus exists

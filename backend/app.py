@@ -9,11 +9,11 @@ CORS(app)
 def get_prediction():
     route_id = int(request.args.get("route_id"))
     time_of_day = int(request.args.get("time"))
-    delay, ghost_prob = predict(route_id, time_of_day)
+    delay, ghost_prob, gps_active_live = predict(route_id, time_of_day)
     return jsonify({
         "predicted_delay": round(delay, 2),
-        "ghost_probability": round(ghost_prob, 2)
-
+        "ghost_probability": round(ghost_prob, 2),
+        "sensor_status": gps_active_live
     })
 if __name__ == "__main__":
     app.run(debug=True)

@@ -4,6 +4,7 @@ function getData() {
     .then(data => {
         document.getElementById("output").innerText =
           "Delay: " + data.predicted_delay +
-          " mins | Ghost Risk: " + data.ghost_probability;
+          " mins | Ghost Risk: " + (data.ghost_probability * 100).toFixed(0) + "%" +
+          " | Sensor: " + (data.sensor_status == 0 ? "NO ACTIVITY" : "ACTIVE");
     });
 }
