@@ -1,0 +1,37 @@
+dep_stop,arr_stop,dep_time,arr_time,trip_id,mode
+Western Bank,Charnok,1458,1518,52,bus
+Western Bank,Woodhouse,1506,1525,52,bus
+Western Bank,Woodhouse,1458,1515,52,bus
+Western Bank,Charnok,1537,1555,120,bus
+Western Bank,Sheffield,1500,1510,walk,walk
+Sheffield,Western Bank,1510,1520,walk,walk
+Sheffield,Leeds,1510,1600,EMR,train
+Sheffield,Birmingham New Street,1520,1620,EMR,train
+Sheffield,London Euston,1515,1700,EMR,train
+Sheffield,Bristol Temple Meads,1510,1730,EMR,train
+Western Bank,Charnok,1600,1620,52,bus
+Western Bank,Woodhouse,1605,1625,52,bus
+Western Bank,Charnok,1610,1630,120,bus
+Woodhouse,Sheffield,1625,1635,52,bus
+Charnok,Sheffield,1620,1635,120,bus
+Sheffield,Leeds,1630,1720,EMR,train
+Sheffield,Birmingham New Street,1635,1735,EMR,train
+Sheffield,London Euston,1640,1820,EMR,train
+Sheffield,London Euston,1635,1815,EMR,train
+Sheffield,Bristol Temple Meads,1630,1850,EMR,train
+Western Bank,Charnok,1700,1720,52,bus
+Western Bank,Woodhouse,1705,1725,52,bus
+Woodhouse,Sheffield,1725,1735,52,bus
+Charnok,Sheffield,1720,1735,120,bus
+Sheffield,Leeds,1730,1820,EMR,train
+Sheffield,Birmingham New Street,1735,1835,EMR,train
+Sheffield,London Euston,1740,1920,EMR,train
+Sheffield,Bristol Temple Meads,1730,1950,EMR,train
+Western Bank,Charnok,1800,1820,52,bus
+Western Bank,Woodhouse,1805,1825,52,bus
+Woodhouse,Sheffield,1825,1835,52,bus
+Charnok,Sheffield,1820,1835,120,bus
+Sheffield,Leeds,1830,1920,EMR,train
+Sheffield,Birmingham New Street,1835,1935,EMR,train
+Sheffield,London Euston,1840,2020,EMR,train
+Sheffield,Bristol Temple Meads,1830,2050,EMR,train
