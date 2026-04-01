@@ -74,18 +74,9 @@ def csa(start, end, start_time, stops, connections):
 
 stops, connections = load_connections("timing_data.csv")
 
-# TODO instead of this take input from frontend
-start_stop = 'Western Bank'
-end_stop = 'Sheffield' # Charnok
-start_time = 1520 # 1900
-
-# calculate route using csa algorithm
-main_route = csa(start_stop, end_stop, start_time, stops, connections)
-
-# checking to see if there is a valid journey route
-# TODO obviously do this printing stuff in frontend instead
-if main_route:
-    for leg in main_route:
+# printing info for each leg TODO will change this for frontend bc shouldnt be printing to terminal
+def leg_printer(route):
+    for leg in route:
         # use model for buses only
         if leg['mode'] == 'bus':
             delay, ghost = get_prediction(leg['route_id'], leg['departure'])
@@ -100,8 +91,35 @@ if main_route:
         print(f"Ghost risk: {leg['ghost_risk']}")
         print(f"Delay: {leg['delay']}\n")
         #print(f"Adjusted arrival: {leg['adjusted_arrival']}")
+
+
+# TODO instead of this take input from frontend
+start_stop = 'Western Bank'
+end_stop = 'Sheffield' # Charnok
+start_time = 1520 # 1900
+
+# calculate route using csa algorithm
+main_route = csa(start_stop, end_stop, start_time, stops, connections)
+
+# checking to see if there is a valid journey route
+if main_route:
+    print("Main route\n")
+    leg_printer(main_route)
+ 
+    # backup route  just in case
+    # TODO if possible remove highest risk ghost bus instead of first connection
+    backup_connections = connections.copy()
+    backup_connections = [c for c in connections if c != main_route[0]]
+    backup_route = csa(start_stop, end_stop, start_time, stops, backup_connections)
+    # checking to see if there is a valid journey route
+    if backup_route:
+        print("Backup route\n")
+        leg_printer(backup_route)
+    else:
+        print("No backup routes :(")
 else:
     print("No possible routes :(")
 
 
-# TODO backup route  just in case
+
+
