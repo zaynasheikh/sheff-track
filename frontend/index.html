@@ -1,13 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Sheffield Tracking</title>
 
 </head>
 <body>
     <h1>Sheffield tracking dashboard</h1>
-    <button onclick="getData()">Check Route 52</button>
-    <p id="output"></p>
+
+    <input id="start" placeholder="Start (e.g. Western Bank)">
+    <input id="end" placeholder="End (e.g. Sheffield)">
+    <input id="time" placeholder="Time (e.g. 1500)">
+
+    <button onclick="getRoute()">Find Route</button>
+
+    <pre id="output"></pre>
     <script src="app.js"></script>
 </body>
 </html>

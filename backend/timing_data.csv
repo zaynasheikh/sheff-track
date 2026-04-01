@@ -3,8 +3,6 @@ Western Bank,Charnok,1458,1518,52,bus
 Western Bank,Woodhouse,1506,1525,52,bus
 Western Bank,Woodhouse,1458,1515,52,bus
 Western Bank,Charnok,1537,1555,120,bus
-Western Bank,Sheffield,1500,1510,walk,walk
-Sheffield,Western Bank,1510,1520,walk,walk
 Sheffield,Leeds,1510,1600,EMR,train
 Sheffield,Birmingham New Street,1520,1620,EMR,train
 Sheffield,London Euston,1515,1700,EMR,train
@@ -35,3 +33,50 @@ Sheffield,Leeds,1830,1920,EMR,train
 Sheffield,Birmingham New Street,1835,1935,EMR,train
 Sheffield,London Euston,1840,2020,EMR,train
 Sheffield,Bristol Temple Meads,1830,2050,EMR,train
+Western Bank,Woodhouse,1450,1510,52,bus
+Western Bank,Woodhouse,1500,1520,52,bus
+Western Bank,Woodhouse,1510,1530,52,bus
+Western Bank,Charnok,1455,1515,120,bus
+Western Bank,Charnok,1505,1525,120,bus
+Western Bank,Charnok,1515,1535,120,bus
+Western Bank,City Centre,1455,1505,30,bus
+Western Bank,City Centre,1505,1515,30,bus
+City Centre,Sheffield,1510,1520,30,bus
+City Centre,Sheffield,1520,1530,30,bus
+Western Bank,University Tram Stop,1455,1500,T1,tram
+University Tram Stop,Sheffield,1500,1510,T1,tram
+Western Bank,University Tram Stop,1505,1510,T1,tram
+University Tram Stop,Sheffield,1510,1520,T1,tram
+Woodhouse,Sheffield,1525,1535,52,bus
+Woodhouse,Sheffield,1535,1545,52,bus
+Charnok,Sheffield,1520,1535,120,bus
+Charnok,Sheffield,1535,1550,120,bus
+City Centre,Woodhouse,1515,1530,40,bus
+City Centre,Charnok,1515,1535,41,bus
+Sheffield,Leeds,1530,1620,EMR,train
+Sheffield,Leeds,1600,1650,EMR,train
+Sheffield,Birmingham New Street,1535,1635,EMR,train
+Sheffield,Birmingham New Street,1600,1700,EMR,train
+Sheffield,London Euston,1540,1740,EMR,train
+Sheffield,London Euston,1600,1800,EMR,train
+Sheffield,Bristol Temple Meads,1530,1800,EMR,train
+Sheffield,Bristol Temple Meads,1600,1830,EMR,train
+Western Bank,University Tram Stop,1540,1545,T1,tram
+University Tram Stop,Sheffield,1545,1555,T1,tram
+Western Bank,Charnok,1535,1550,120,bus
+Charnok,Sheffield,1550,1605,120,bus
+Western Bank,City Centre,1538,1548,30,bus
+City Centre,Sheffield,1550,1600,30,bus
+Western Bank,Woodhouse,1535,1555,52,bus
+Woodhouse,Sheffield,1600,1610,52,bus
+Western Bank,University Tram Stop,1530,1535,T1,tram
+University Tram Stop,Sheffield,1535,1545,T1,tram
+Western Bank,Charnok,1800,1820,52,bus
+Charnok,Sheffield,1825,1840,52,bus
+Western Bank,Woodhouse,1805,1825,52,bus
+Woodhouse,Sheffield,1830,1845,52,bus
+Western Bank,University Tram Stop,1500,1505,T1,tram
+University Tram Stop,Sheffield,1505,1515,T1,tram
+Western Bank,City Centre,1502,1512,30,bus
+City Centre,Sheffield,1515,1525,30,bus
+Sheffield,Leeds,1530,1620,EMR,train

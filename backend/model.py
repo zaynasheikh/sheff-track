@@ -50,9 +50,7 @@ def reliability_score():
     return round((1 - ghosts/total) * 100, 2)
 # simulating live sensor data
 def get_sensor_activity(route_id, time_of_day):
-    # simulate number of devices near the bus
-    activity = random.randint(0,10)
-    return activity
+    return (route_id * time_of_day) % 10
 
 def detect_gps_from_sensor(route_id, time_of_day):
     activity = get_sensor_activity(route_id, time_of_day)
