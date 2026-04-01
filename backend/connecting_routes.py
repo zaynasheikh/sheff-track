@@ -76,29 +76,32 @@ stops, connections = load_connections("timing_data.csv")
 
 # TODO instead of this take input from frontend
 start_stop = 'Western Bank'
-end_stop = 'Charnok'
-start_time = 1500
+end_stop = 'Sheffield' # Charnok
+start_time = 1520 # 1900
 
 # calculate route using csa algorithm
 main_route = csa(start_stop, end_stop, start_time, stops, connections)
 
-for leg in main_route:
-    # use model for buses only
-    if leg['mode'] == 'bus':
-        delay, ghost = get_prediction(leg['route_id'], leg['departure'])
-    else:
-        delay, ghost = 0, 0
+# checking to see if there is a valid journey route
+# TODO obviously do this printing stuff in frontend instead
+if main_route:
+    for leg in main_route:
+        # use model for buses only
+        if leg['mode'] == 'bus':
+            delay, ghost = get_prediction(leg['route_id'], leg['departure'])
+        else:
+            delay, ghost = 0, 0
 
-    leg['delay'] = delay
-    leg['ghost_risk'] = ghost
-    leg['adjusted_arrival'] = leg['arrival'] + delay
+        leg['delay'] = delay
+        leg['ghost_risk'] = ghost
+        leg['adjusted_arrival'] = leg['arrival'] + delay
 
-for i, leg in enumerate(main_route):
-    print(f"{leg['departure']} -> {leg['arrival']} : {leg['from']} -> {leg['to']} ({leg['mode']}, {leg['route_id']})")
-    print(f"Ghost risk: {leg['ghost_risk']}")
-    print(f"Delay: {leg['delay']}")
-    #print(f"Adjusted arrival: {leg['adjusted_arrival']}")
+        print(f"{leg['departure']} -> {leg['arrival']} : {leg['from']} -> {leg['to']} ({leg['mode']}, {leg['route_id']})")
+        print(f"Ghost risk: {leg['ghost_risk']}")
+        print(f"Delay: {leg['delay']}\n")
+        #print(f"Adjusted arrival: {leg['adjusted_arrival']}")
+else:
+    print("No possible routes :(")
+
 
 # TODO backup route  just in case
-# TODO say when there are no possible journeys
-# 
