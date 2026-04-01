@@ -80,3 +80,22 @@ University Tram Stop,Sheffield,1505,1515,T1,tram
 Western Bank,City Centre,1502,1512,30,bus
 City Centre,Sheffield,1515,1525,30,bus
 Sheffield,Leeds,1530,1620,EMR,train
+Crookes,Broomhill,1450,1457,52,bus
+Broomhill,Western Bank,1458,1502,52,bus
+Western Bank,City Centre,1503,1512,52,bus
+City Centre,Sheffield,1515,1522,52,bus
+Hillsborough,University Tram Stop,1445,1500,Yellow,tram
+University Tram Stop,City Centre,1501,1508,Yellow,tram
+City Centre,Sheffield,1509,1515,Yellow,tram
+Ecclesall Road,City Centre,1455,1510,81,bus
+City Centre,Manor Top,1515,1535,120,bus
+Manor Top,Charnok,1536,1545,120,bus
+Sheffield,Meadowhall,1510,1518,Train,train
+Meadowhall,Leeds,1520,1605,Train,train
+Darnall,Sheffield,1455,1510,52,bus
+Western Bank,Woodhouse,1500,1525,52,bus
+Western Bank,Charnok,1510,1535,120,bus
+University Tram Stop,Hillsborough,1530,1545,Yellow,tram
+Sheffield,London Euston,1530,1745,EMR,train
+City Centre,Ecclesall Road,1540,1555,81,bus
+Broomhill,Crookes,1600,1608,52,bus
