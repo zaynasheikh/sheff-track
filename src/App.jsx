@@ -47,6 +47,30 @@ function FlyToRoute({ start }) {
   return null;
 }
 
+const stopCoordsLookup = {
+  // Original Hubs
+  "Western Bank": [53.3814, -1.4884],
+  "City Centre": [53.3806, -1.4702],
+  "Sheffield": [53.3777, -1.4616],
+  "University Tram Stop": [53.3813, -1.4860],
+  
+  // New Local Areas
+  "Hillsborough": [53.4011, -1.5005],
+  "Meadowhall": [53.4139, -1.4111],
+  "Ecclesall Road": [53.3665, -1.4945],
+  "Manor Top": [53.3635, -1.4235],
+  "Darnall": [53.3845, -1.4132],
+  "Crookes": [53.3835, -1.5032],
+  "Broomhill": [53.3768, -1.4948],
+  "Charnok": [53.3444, -1.4185],
+  "Woodhouse": [53.3557, -1.3739],
+  
+  // Train Destinations
+  "Leeds": [53.7951, -1.5476],
+  "Birmingham New Street": [52.4777, -1.8990],
+  "London Euston": [51.5284, -0.1332],
+  "Bristol Temple Meads": [51.4496, -2.5810]
+};
 export default function App() {
   const [start, setStart] = useState(null);
   const [end, setEnd] = useState(null);
@@ -71,6 +95,29 @@ export default function App() {
     });
   }, []);
   
+  const [transportData, setTransportData] = useState(null);
+  const [timeInput, setTimeInput] = useState("1500");
+  const [showTransport, setShowTransport] = useState(false);
+
+  const getTransportPath = () => {
+  if (!transportData || !transportData.main_route) return [];
+  
+  const path = [];
+
+  transportData.main_route.forEach((leg, index) => {
+    const fromCoord = stopCoordsLookup[leg.from];
+    const toCoord = stopCoordsLookup[leg.to];
+
+    if (fromCoord) path.push(fromCoord);
+
+    // only push last destination once
+    if (toCoord && index === transportData.main_route.length - 1) {
+      path.push(toCoord);
+    }
+  });
+
+  return path;
+};
   // Scoring
   function calculateDistance(coords) {
     let dist = 0;
@@ -235,36 +282,6 @@ export default function App() {
   }
 
   const currentModeRef = useRef(mode);
-
-  useEffect(() => {
-    currentModeRef.current = mode;
-  }, [mode]);
-
-  useEffect(() => {
-    if (!start || !end) return;
-
-    const requestedMode = mode;
-
-    setAllRoutes([]);
-    setRouteSelected([]);
-    setRouteInfo('');
-    setHillScores([]);
-
-    async function run() {
-      await fetchRoutes(start, end, requestedMode);
-    }
-
-    run();
-  }, [start, end, mode]);
-
-  useEffect(() => {
-    if (allRoutes.length === 0 || hillScores.length !== allRoutes.length) return;
-
-    const best = pickBestRoute(allRoutes, priority, hillScores);
-    setRouteSelected(best);
-    updateRouteInfo(best, mode, priority);
-  }, [priority, allRoutes, hillScores]);
-
   function updateRouteInfo(route, currentMode, currentPriority) {
     const distanceMetres = calculateDistance(route);
     const speed = currentMode === "cycling-regular" ? 4.2 : 1.4;
@@ -363,13 +380,71 @@ export default function App() {
 
     setLoading(false);
   }
+  async function fetchTransportRoute() {
+    if (!startInput || !endInput) return;
+    setLoading(true);
+    try {
+      // ADD THIS: Look up coordinates for the pins
+      const startCoord = stopCoordsLookup[startInput];
+      const endCoord = stopCoordsLookup[endInput];
+
+      if (startCoord) setStart({ lat: startCoord[0], lng: startCoord[1] });
+      if (endCoord) setEnd({ lat: endCoord[0], lng: endCoord[1] });
+
+      // Calling your specific Python CSA backend
+      const res = await fetch(`http://127.0.0.1:5000/route?start=${startInput}&end=${endInput}&time=${timeInput}`);
+      const data = await res.json();
+      setTransportData(data);
+      setShowTransport(true);
+    } catch (e) {
+      console.error("Transport fetch error", e);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    currentModeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    if (!start || !end) return;
+
+    //  STOP walking API when in transport mode
+    if (mode === "transport") return;
+    const requestedMode = mode;
+
+    setAllRoutes([]);
+    setRouteSelected([]);
+    setRouteInfo('');
+    setHillScores([]);
+
+    async function run() {
+      await fetchRoutes(start, end, requestedMode);
+    }
+
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, end, mode]);
+
+  useEffect(() => {
+    if (allRoutes.length === 0 || hillScores.length !== allRoutes.length) return;
+
+    const best = pickBestRoute(allRoutes, priority, hillScores);
+    setRouteSelected(best);
+    updateRouteInfo(best, mode, priority);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priority, allRoutes, hillScores]);
+
+  
 
   // Autocomplete
-  let debounceTimer;
+  const debounceTimer = useRef(null);
   async function fetchSuggestions(query, setSuggestions) {
     if (query.length < 3) return setSuggestions([]);
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(async () => {
+    clearTimeout(debounceTimer.current);
+
+    // eslint-disable-next-line react-hooks/immutability
+    debounceTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/autocomplete?text=${encodeURIComponent(query)}`)
         const data = await res.json();
@@ -421,10 +496,23 @@ export default function App() {
 
         <input placeholder="Start" value={startInput}
           onChange={(e) => {
-            setStartInput(e.target.value);
-            fetchSuggestions(e.target.value, setStartSuggestions);
+            const val = e.target.value;
+            setStartInput(val);
+
+            if (mode !== "transport") {
+              fetchSuggestions(val, setStartSuggestions);
+            } else {
+              setStartSuggestions([]);
+
+              if (stopCoordsLookup[val]) {
+                setStart({
+                  lat: stopCoordsLookup[val][0],
+                  lng: stopCoordsLookup[val][1]
+                });
+              }
+            }
           }} />
-        {startSuggestions.map((s, i) => (
+        {mode !== "transport" && startSuggestions.map((s, i) => (
           <div key={i}
             style={{ cursor: 'pointer', padding: '4px', borderBottom: '1px solid #eee' }}
             onClick={() => {
@@ -436,10 +524,24 @@ export default function App() {
 
         <input placeholder="End" value={endInput}
           onChange={(e) => {
-            setEndInput(e.target.value);
-            fetchSuggestions(e.target.value, setEndSuggestions);
+            const val = e.target.value;
+            setEndInput(val);
+
+            if (mode !== "transport") {
+              fetchSuggestions(val, setEndSuggestions);
+            } else {
+              setEndSuggestions([]);
+
+              //  SAME FIX HERE
+              if (stopCoordsLookup[val]) {
+                setEnd({
+                  lat: stopCoordsLookup[val][0],
+                  lng: stopCoordsLookup[val][1]
+                });
+              }
+            }
           }} />
-        {endSuggestions.map((s, i) => (
+        {mode !== "transport" && endSuggestions.map((s, i) => (
           <div key={i}
             style={{ cursor: 'pointer', padding: '4px', borderBottom: '1px solid #eee' }}
             onClick={() => {
@@ -449,27 +551,83 @@ export default function App() {
             }}>{s.display_name}</div>
         ))}
 
-        <select value={mode} onChange={(e) => setMode(e.target.value)}>
+        <select value={mode} onChange={(e) => {
+          setMode(e.target.value);
+          setShowTransport(false);
+        }}>
           <option value="foot-walking">Walking</option>
           <option value="cycling-regular">Cycling</option>
+          <option value="transport">Bus / Tram / Train (Smart)</option>
         </select>
 
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-          <option value="balanced">Balanced</option>
-          <option value="fast">Fastest</option>
-          <option value="hills">Less Hilly</option>
-          <option value="crowd">Less Crowded</option>
-          <option value="safe">Safe (Night)</option>
-        </select>
+        {mode !== "transport" && (
+          <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+            <option value="balanced">Balanced</option>
+            <option value="fast">Fastest</option>
+            <option value="hills">Less Hilly</option>
+            <option value="crowd">Less Crowded</option>
+            <option value="safe">Safe (Night)</option>
+          </select>
+        )}
+        {mode === "transport" && (
+          <div style={{ marginTop: '10px' }}>
+            <input
+              placeholder="Time (e.g. 1500)"
+              value={timeInput}
+              onChange={(e) => setTimeInput(e.target.value)}
+              style={{ width: '100px' }}
+            />
+            <button onClick={fetchTransportRoute} style={{ marginLeft: '10px' }}>
+              Find Smart Route
+            </button>
+          </div>
+        )}
 
         <hr />
-        {loading && <p>Finding routes...</p>}
-        {warning && <p style={{ color: 'red' }}>{warning}</p>}
-        {routeInfo && <p>{routeInfo}</p>}
-        <p><b>Legend:</b></p>
-        <p style={{ color: 'red' }}>Busy</p>
-        <p style={{ color: 'orange' }}>Medium</p>
-        <p style={{ color: 'green' }}>Quiet</p>
+
+        {/*  TRANSPORT RESULT BOX */}
+        {mode === "transport" && transportData && (
+          <div style={{ 
+            marginTop: '10px',
+            padding: '10px',
+            background: '#f0f7ff',
+            borderRadius: '8px',
+            fontSize: '13px',
+            border: '1px solid #007bff'
+          }}>
+            <h4>Smart Transport Results</h4>
+
+            {transportData.status === "rerouted" && (
+              <p style={{ color: 'orange' }}>
+                ⚠️ Rerouted due to Ghost Risk!
+              </p>
+            )}
+
+            {transportData.main_route?.map((leg, i) => (
+              <div key={i} style={{ marginBottom: '8px' }}>
+                <b>{leg.from} → {leg.to}</b>
+                <div>{leg.mode}</div>
+                <div>
+                  Ghost Risk: {(leg.ghost_risk * 100).toFixed(0)}% | Delay: {leg.delay}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/*  NORMAL MODE UI */}
+        {mode !== "transport" && (
+          <>
+            {loading && <p>Finding routes...</p>}
+            {warning && <p style={{ color: 'red' }}>{warning}</p>}
+            {routeInfo && <p>{routeInfo}</p>}
+
+            <p><b>Legend:</b></p>
+            <p style={{ color: 'red' }}>Busy</p>
+            <p style={{ color: 'orange' }}>Medium</p>
+            <p style={{ color: 'green' }}>Quiet</p>
+          </>
+        )}
       </div>
 
       <MapContainer
@@ -489,7 +647,25 @@ export default function App() {
         {start && <Marker position={start}><Popup>Start</Popup></Marker>}
         {end && <Marker position={end}><Popup>End</Popup></Marker>}
 
-        <Polyline positions={routeSelected} pathOptions={{ color: 'green', weight: 6 }} />
+        {/*  Walking/Cycling */}
+        {mode !== "transport" && routeSelected.length > 0 && (
+          <Polyline 
+            positions={routeSelected} 
+            pathOptions={{ color: 'green', weight: 6 }} 
+          />
+        )}
+
+        {/* Transport */}
+        {mode === "transport" && transportData && (
+          <Polyline 
+            positions={getTransportPath()} 
+            pathOptions={{ 
+              color: transportData.status === "rerouted" ? "orange" : "blue",
+              weight: 6,
+              dashArray: '10, 10'
+            }} 
+          />
+        )}
 
         {mergedZones.map((z, i) => {
           let color;

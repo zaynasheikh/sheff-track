@@ -1,5 +1,6 @@
 import requests
 import csv
+from model import predict
 
 # loading connections from given csv file
 def load_connections(file):
@@ -14,7 +15,7 @@ def load_connections(file):
                 'to': row['arr_stop'],
                 'departure': int(row['dep_time']),
                 'arrival': int(row['arr_time']),
-                'route_id': int(row['trip_id']) if row['mode'] == 'bus' else None,
+                'route_id': row['trip_id'], # KEEP it as the raw ID (T1, EMR, 52)
                 'mode': row['mode']
             }
             connections.append(conn)
@@ -27,52 +28,58 @@ def load_connections(file):
 # ghost bus + delay predictions using model
 def get_prediction(route_id, departure):
     try:
-        hour = departure // 100 # TODO uhh maybe change it to hrs+mins sinstead of just hrs
-
-        url = f"http://127.0.0.1:5000/predict?route_id={route_id}&time={hour}"
-        res = requests.get(url, timeout=2).json()
-
-        return res["predicted_delay"], res["ghost_probability"]
-    except:
+        # If it's already a number (like 52), use it. 
+        # If it's a string (like 'T1'), hash it to a consistent number.
+        try:
+            rid = int(route_id)
+        except:
+            rid = sum(ord(c) for c in str(route_id))
+        
+        hour = int(departure) // 100
+        # Call the model
+        delay, ghost, _ = predict(rid, hour)
+        return delay, ghost
+    except Exception as e:
+        print(f"Prediction error: {e}")
         return 0, 0
 
 # csa routing algoritnhm
 def csa(start, end, start_time, stops, connections):
-    # earliest arrival times
-    earliest = {s: float('inf') for s in stops}
-    earliest[start] = start_time
-
+    earliest_time = {s: float('inf') for s in stops}
+    earliest_cost = {s: float('inf') for s in stops}
+    earliest_time[start] = start_time
+    earliest_cost[start] = start_time
+    
     prev = {s: None for s in stops}
+    sorted_connections = sorted(connections, key=lambda x: x['departure'])
 
-    # order connections by departure time
-    sorted_connections = connections.copy()
-    for i in range(len(sorted_connections)):
-        for j in range(i + 1, len(sorted_connections)):
-            if sorted_connections[j]['departure'] < sorted_connections[i]['departure']:
-                sorted_connections[i], sorted_connections[j] = sorted_connections[j], sorted_connections[i]
-
-    # update earliest arrival times and prev
     for conn in sorted_connections:
         u = conn['from']
         v = conn['to']
-
-        if earliest[u] <= conn['departure']:
-            if conn['arrival'] < earliest[v]:
-                earliest[v] = conn['arrival']
+        
+        if earliest_time[u] <= conn['departure']:
+            # CHANGE: Now we get predictions for EVERYTHING (Bus, Tram, and Train)
+            # We use trip_id as the route_id for the model
+            delay, ghost = get_prediction(conn['route_id'], conn['departure'])
+            
+            # The "Smart Cost" calculation
+            # If ghost risk is high, penalty is huge. 
+            # If delay is high, cost goes up.
+            risk_penalty = ghost * 500 
+            current_leg_cost = conn['arrival'] + delay + risk_penalty
+            
+            if current_leg_cost < earliest_cost[v]:
+                earliest_cost[v] = current_leg_cost
+                earliest_time[v] = conn['arrival'] + delay 
                 prev[v] = conn
 
     route = []
     curr = end
-    while curr != start:
+    while curr in prev and prev[curr] is not None:
         c = prev[curr]
-        if c is None:
-            break
         route.insert(0, c)
         curr = c['from']
-
     return route
-
-stops, connections = load_connections("timing_data.csv")
 
 # printing info for each leg TODO will change this for frontend bc shouldnt be printing to terminal
 def leg_printer(route):
@@ -92,34 +99,58 @@ def leg_printer(route):
         print(f"Delay: {leg['delay']}\n")
         #print(f"Adjusted arrival: {leg['adjusted_arrival']}")
 
+def is_bad_route(route):
+    total_ghost = sum([leg.get('ghost_risk', 0) for leg in route])
+    return total_ghost > 1.0  #threshold
 
-# TODO instead of this take input from frontend
-start_stop = 'Western Bank'
-end_stop = 'Sheffield' # Charnok
-start_time = 1520 # 1900
+def find_best_route(start_stop, end_stop, start_time):
+    stops, connections = load_connections("timing_data.csv")
 
-# calculate route using csa algorithm
-main_route = csa(start_stop, end_stop, start_time, stops, connections)
+    main_route = csa(start_stop, end_stop, start_time, stops, connections)
 
-# checking to see if there is a valid journey route
-if main_route:
-    print("Main route\n")
-    leg_printer(main_route)
- 
-    # backup route  just in case
-    # TODO if possible remove highest risk ghost bus instead of first connection
-    backup_connections = connections.copy()
-    backup_connections = [c for c in connections if c != main_route[0]]
-    backup_route = csa(start_stop, end_stop, start_time, stops, backup_connections)
-    # checking to see if there is a valid journey route
-    if backup_route:
-        print("Backup route\n")
-        leg_printer(backup_route)
-    else:
-        print("No backup routes :(")
-else:
-    print("No possible routes :(")
+    def format_route(route):
+        output = []
+        for leg in route:
+            delay, ghost = get_prediction(leg['route_id'], leg['departure'])
+            adjusted_arrival = leg['arrival'] + delay
+            output.append({
+                "from": leg['from'],
+                "to": leg['to'],
+                "departure": leg['departure'],
+                "arrival": leg['arrival'],
+                "mode": leg['mode'],
+                "delay": round(delay, 1),
+                "ghost_risk": ghost,
+                "adjusted_arrival": adjusted_arrival
+            })
+        return output
 
+    if not main_route:
+        return {"error": "No route found"}
 
+    # check if bad
+    total_ghost = sum([leg.get('ghost_risk', 0) for leg in main_route])
+    avg_ghost = total_ghost / len(main_route)
+    if avg_ghost > 0.4:
+        # remove risky buses
+        filtered_connections = []
+        for c in connections:
+            if c['mode'] == 'bus':
+                _, ghost = get_prediction(c['route_id'], c['departure'])
+                if ghost > 0.7:
+                    continue
+            filtered_connections.append(c)
 
+        backup_route = csa(start_stop, end_stop, start_time, stops, filtered_connections)
+
+        return {
+            "status": "rerouted",
+            "main_route": format_route(main_route),
+            "backup_route": format_route(backup_route) if backup_route else []
+        }
+
+    return {
+        "status": "ok",
+        "main_route": format_route(main_route)
+    }
 
