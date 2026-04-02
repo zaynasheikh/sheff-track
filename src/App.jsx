@@ -20,13 +20,26 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const bounds = [[53.33, -1.55], [53.42, -1.38]];
+const bounds = [[53.33, -1.55],[53.42, -1.38] ];
 
-const crowdZones = [
-  { center: [53.3811, -1.4701], level: 3, label: "City Centre (Busy)" },
-  { center: [53.37, -1.48],     level: 2, label: "Sharrow (Medium)" },
-  { center: [53.36, -1.49],     level: 1, label: "Residential (Quiet)" }
-];
+async function fetchCrowdZones() {
+  try {
+    const res = await fetch("/api/crowd");
+
+    if (!res.ok) {
+      console.error("Crowd API failed");
+      return [];
+    }
+
+    const data = await res.json();
+    console.log("Elevation response:", JSON.stringify(data));
+    return Array.isArray(data) ? data : [];
+
+  } catch (e) {
+    console.error("Fetch error:", e);
+    return [];
+  }
+}
 
 function FlyToRoute({ start }) {
   const map = useMap();
@@ -49,7 +62,15 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("foot-walking");
   const [hillScores, setHillScores] = useState([]);
+  const [crowdZones, setCrowdZones] = useState([]);
 
+  useEffect(() => {
+    fetchCrowdZones().then(zones => {
+      console.log("Loaded crowd zones:", zones?.length);
+      setCrowdZones(zones);
+    });
+  }, []);
+  
   // Scoring
   function calculateDistance(coords) {
     let dist = 0;
@@ -63,16 +84,80 @@ export default function App() {
 
   function calculateCrowdScore(coords) {
     let score = 0;
+
     coords.forEach(([lat, lng]) => {
+      let nearby = 0;
+
       crowdZones.forEach(zone => {
         const dx = lat - zone.center[0];
         const dy = lng - zone.center[1];
         if (Math.sqrt(dx * dx + dy * dy) < 0.005) {
-          score += zone.level;
+          nearby += zone.level;
         }
       });
+
+      score += nearby;
     });
+    
     return score;
+  }
+
+  function isNearRoute(zone, route) {
+    return route.some(([lat, lng]) => {
+      const dx = lat - zone.center[0];
+      const dy = lng - zone.center[1];
+      return Math.sqrt(dx * dx + dy * dy) < 0.003; 
+    });
+  }
+
+  function mergeZones(zones) {
+    const merged = [];
+
+    zones.forEach(zone => {
+      let found = false;
+
+      for (let m of merged) {
+        const dx = zone.center[0] - m.center[0];
+        const dy = zone.center[1] - m.center[1];
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 0.003 && Math.abs(m.level - zone.level) < 1){ // merge distance
+          // merge into existing cluster
+          m.center[0] = (m.center[0] + zone.center[0]) / 2;
+          m.center[1] = (m.center[1] + zone.center[1]) / 2;
+          m.level = Math.max(m.level, zone.level);
+          m.count += 1;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        merged.push({ ...zone, count: 1 });
+      }
+    });
+
+    return merged;
+  }
+
+  function removeOverlaps(zones) {
+    const result = [];
+
+    zones.forEach((zone) => {
+      const tooClose = result.some((existing) => {
+        const dx = zone.center[0] - existing.center[0];
+        const dy = zone.center[1] - existing.center[1];
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        return dist < 0.002; // simple fixed distance
+      });
+
+      if (!tooClose) {
+        result.push(zone);
+      }
+    });
+
+    return result;
   }
 
   async function fetchElevationScore(coords) {
@@ -98,6 +183,7 @@ export default function App() {
       });
             
       const data = await res.json();
+      console.log("Elevation response:", data);
       const elevations = data.geometry.coordinates.map(c => c[2]);
 
       let totalClimb = 0;
@@ -120,6 +206,7 @@ export default function App() {
 
     if (currentPriority === "fast")  return d;
     if (currentPriority === "crowd") return c * 1000 + d;
+    if (currentPriority === "safe")  return -c * 1000 + d;
 
     // If no real hill score is available, use distance and crowd
     if (realHillScore === null || realHillScore === undefined) {
@@ -207,6 +294,7 @@ export default function App() {
             [startCoords.lng, startCoords.lat],
             [endCoords.lng, endCoords.lat]
           ],
+          mode: currentMode, 
           alternative_routes: {
             target_count: 3,
             weight_factor: 1.6
@@ -237,7 +325,7 @@ export default function App() {
         return;
       }
 
-      // Fetch real elevation for all routes in parallel
+      // Fetch elevation for all routes in parallel
       const elevationScores = await Promise.all(
         parsed.map(coords => fetchElevationScore(coords))
       );
@@ -300,6 +388,23 @@ export default function App() {
     }, 400);
   }
 
+  const filteredZones = Array.isArray(crowdZones)
+    ? crowdZones
+        .filter(z => z.level >= 0.5)
+        .filter(z => isNearRoute(z, routeSelected))
+    : [];
+
+  const boostedZones = mergeZones(filteredZones).map(z => ({
+    ...z,
+    level: Math.min(4, z.level + Math.floor(z.count / 5) * 0.5)
+  }));
+
+  const mergedZones = removeOverlaps(boostedZones)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  console.log("mergedZones:", mergedZones.map(z => ({ label: z.label, level: z.level, count: z.count })));
+
   return (
     <div>
       <div style={{
@@ -354,6 +459,7 @@ export default function App() {
           <option value="fast">Fastest</option>
           <option value="hills">Less Hilly</option>
           <option value="crowd">Less Crowded</option>
+          <option value="safe">Safe (Night)</option>
         </select>
 
         <hr />
@@ -385,15 +491,34 @@ export default function App() {
 
         <Polyline positions={routeSelected} pathOptions={{ color: 'green', weight: 6 }} />
 
-        {crowdZones.map((z, i) => (
-          <Circle key={i} center={z.center} radius={400}
-            pathOptions={{
-              color: z.level === 3 ? 'red' : z.level === 2 ? 'orange' : 'green',
-              fillOpacity: 0.4
-            }}>
-            <Popup>{z.label}</Popup>
-          </Circle>
-        ))}
+        {mergedZones.map((z, i) => {
+          let color;
+
+          if (z.level >= 3) {
+            color = '#ff4d4d';  
+          } else if (z.level >= 1.5) {
+            color = '#ffa94d';
+          } else {
+            color = '#66cc66';
+          }
+
+          return (
+            <Circle
+              key={i}
+              center={z.center}
+              radius={z.count > 1 ? 80 + z.count * 15 : 60}
+              pathOptions={{
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.25
+              }}
+            >
+              <Popup>
+                {z.count} crowded places
+              </Popup>
+            </Circle>
+          );
+        })}
       </MapContainer>
     </div>
   );
